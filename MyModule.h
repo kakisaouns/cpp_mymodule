@@ -6,5 +6,6 @@
 #include "fctrl.h" //file read/close module
 #include "Result.h" //result type module
 #include "parse.h"  //parse module
+#include "Argparser.h"
 
 #endif

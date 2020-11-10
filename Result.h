@@ -7,19 +7,41 @@
 #include "MyModuleType.h"
 
 namespace Module{
+    namespace ResultUtil{
+        template<typename T, typename Y>
+        concept checkSumType = std::is_same_v<std::remove_reference_t<T>,std::remove_reference_t<Y>>;
+
+        template<typename T, typename TrueType, typename FalseType>
+        concept checkNoCandidateSumType = !std::is_same_v<std::remove_reference_t<T>,std::remove_reference_t<TrueType>> && !std::is_same_v<std::remove_reference_t<T>,std::remove_reference_t<FalseType>>;
+
+        template<typename T,typename Y>
+        concept checkConvertType = requires(T arg, Y result_type){
+            Y(arg);
+        };
+    }
+
     template<typename TrueType,typename FalseType>
     class Result{
+        
         public:
             constexpr Result(){}
 
-            constexpr Result(TrueType && true_value) : value(std::forward<TrueType>(true_value)){}
-            constexpr Result(FalseType && false_value) : value(std::forward<TrueType>(false_value)){}
+            template<typename T> requires ResultUtil::checkSumType<T,TrueType>
+            constexpr Result(T && true_value) : value(std::forward<TrueType>(true_value)){}
+
+            template<typename T> requires ResultUtil::checkSumType<T,FalseType>
+            constexpr Result(T && false_value) : value(std::forward<FalseType>(false_value)){}
+
+            template<typename T> requires ResultUtil::checkNoCandidateSumType<T,TrueType,FalseType> && ResultUtil::checkConvertType<T,TrueType>
+            constexpr Result(T && true_value) : value(std::forward<TrueType>(true_value)){}
+
+            template<typename T> requires ResultUtil::checkNoCandidateSumType<T,TrueType,FalseType> && ResultUtil::checkConvertType<T,FalseType>
+            constexpr Result(T && false_value) : value(std::forward<FalseType>(false_value)){}
 
             operator bool() const noexcept{
-                return std::holds_alternative<TrueType>();
+                return std::holds_alternative<TrueType>(this->value);
             }
 
-            //variantを使う限りはreferenceタイプは防いでくれるっぽい
             std::remove_reference_t<TrueType> & GetTrue(){
                 return std::get<TrueType>(value);
             }
@@ -47,7 +69,7 @@ namespace Module{
                 static_assert(false_type<decltype(v)>,"[Module::Result]Error.Can't move \"TrueType\"");
             }
             
-            template<ttypename T=FalseType,std::enable_if_t<std::is_lvalue_reference_v<T>,void *>v=nullptr>
+            template<typename T=FalseType,std::enable_if_t<std::is_lvalue_reference_v<T>,void *>v=nullptr>
             void GetFalse_Move(){
                 static_assert(false_type<decltype(v)>,"[Module::Result]Error.Can't move \"FalseType\"");
             }
@@ -63,5 +85,7 @@ namespace Module{
             }
     };
 }
+
+
 
 #endif
